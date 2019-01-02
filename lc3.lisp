@@ -33,23 +33,23 @@
   "Handle overflowing registers"
   (ldb (byte 16 0) op))
 
-(defun u16->int (u16)
+(defun u16->s16 (u16)
   "Convert uint16 to an integer"
   (if (= (ldb (byte 1 15) u16) 0)
       u16
       (logxor #xFFFF (1- (- u16)))))
 
-(defun int->u16 (int)
+(defun s16->u16 (int)
   "Convert integer to a uint16"
   (if (> int 0)
       (wrap int)
       (1+ (logxor #xFFFF (- int)))))
 
-(defun sign-extend (u16 bits)
+(defun sign-extend (uint bits)
   "Sign extend to 16 bits"
-  (if (= (ldb (byte 1 (1- bits)) u16) 0)
-      u16
-      (1+ (logxor (ash #xFFFF (+ -16 bits)) (- u16)))))
+  (if (= (ldb (byte 1 (1- bits)) uint) 0)
+      uint
+      (1+ (logxor (ash #xFFFF (+ -16 bits)) (- uint)))))
 
 (defun update-conditional-register (u16)
   "LC3 sets the conditional register R9 with u16's sign when it writes
@@ -82,10 +82,27 @@
                collect (list name `(ldb ',byte ,instr)))
      ,@body))
 
+;; ADD R7, R7, -1
+;; #b0001 1111 1110 111
+;; #x1FFF
+
 ;; ADD
 (funcall #'(lambda (instr)
              (with-spec ((dr 3 9) (sr1 3 6) (mode 1 5) (sr2 3 0) (imm5 5 0)) instr
                (setf (reg dr)
-                     (wrap (+ (aref *registers* sr1) (if (= mode 0) (aref *registers* sr2) (sign-extend imm5 5)))))
+                     (wrap (+ (reg sr1) (if (= mode 0) (reg sr2) (sign-extend imm5 5)))))
                (print (map 'vector #'u16->int *registers*))))
-         #x1fff)
+         #x1fe1)
+
+;; LDI R7, 1
+;; #b1010 1110 0000 0001
+(with-spec ((dr 3 9) (pcoffset9 9 0)) #xae01
+  (setf (reg dr) (mem (mem (+ (sign-extend pcoffset9 9) (reg 8)))))
+  (print (map 'vector #'u16->int *registers*)))
+
+;; AND R7, R1, R7
+;; #b0101111001000111
+(with-spec ((dr 3 9) (sr1 3 6) (mode 1 5) (sr2 3 0) (imm5 5 0))  #b0101111001000111
+  (setf (reg dr)
+        (logand (reg sr1) (if (= mode 0) (reg sr2) (sign-extend imm5 5))))
+  (print (map 'vector #'u16->int *registers*)))
