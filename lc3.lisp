@@ -52,7 +52,7 @@
 (defun update-conditional-register (u16)
   "LC3 sets the conditional register R9 with u16's sign when it writes
    a register"
-  (setf (aref *registers* 9) (position (signum (u16->int u16)) *flags*)))
+  (setf (aref *registers* 9) (position (signum (u16->s16 u16)) *flags*)))
 
 (defun mem (addr)
   "Get block of memory at the address"
@@ -78,7 +78,8 @@
                for name = (first s)
                for byte = (apply #'byte (rest s))
                collect (list name `(ldb ',byte ,instr)))
-     ,@body))
+     ,@body
+     (print (map 'vector #'u16->s16 *registers*))))
 
 ;; ADD R7, R7, -1
 ;; #b0001 1111 1110 111
@@ -88,19 +89,69 @@
 (funcall #'(lambda (instr)
              (with-spec ((dr 3 9) (sr1 3 6) (mode 1 5) (sr2 3 0) (imm5 5 0)) instr
                (setf (reg dr)
-                     (wrap (+ (reg sr1) (if (= mode 0) (reg sr2) (sign-extend imm5 5)))))
-               (print (map 'vector #'u16->int *registers*))))
+                     (wrap (+ (reg sr1) (if (= mode 0) (reg sr2) (sign-extend imm5 5)))))))
          #x1fe1)
-
-;; LDI R7, 1
-;; #b1010 1110 0000 0001
-(with-spec ((dr 3 9) (pcoffset9 9 0)) #xae01
-  (setf (reg dr) (mem (mem (+ (sign-extend pcoffset9 9) (reg 8)))))
-  (print (map 'vector #'u16->int *registers*)))
 
 ;; AND R7, R1, R7
 ;; #b0101111001000111
 (with-spec ((dr 3 9) (sr1 3 6) (mode 1 5) (sr2 3 0) (imm5 5 0))  #b0101111001000111
   (setf (reg dr)
-        (logand (reg sr1) (if (= mode 0) (reg sr2) (sign-extend imm5 5))))
-  (print (map 'vector #'u16->int *registers*)))
+        (logand (reg sr1) (if (= mode 0) (reg sr2) (sign-extend imm5 5)))))
+
+;; BR???
+(with-spec ((n 1 11) (z 1 10) (p 1 9) (pcoffset9 9 0)) #b0000011111111111
+  (when (or (= n 1) (= z 1) (= p 1))
+    (setf (reg 8) (wrap (+ (reg 8) (sign-extend pcoffset9 9))))))
+
+;; JMP (RET is BaseR=R7)
+(with-spec ((baser 3 6)) #b1100000111000000
+  (setf (reg 8) (reg baser)))
+
+;; JSR
+(with-spec ((mode 1 11) (pcoffset11 11 0) (baser 3 6)) #b0100100000000001
+  (setf (reg 7) (reg 8))
+  (if (zerop mode)
+      (setf (reg 8) (reg baser))
+      (setf (reg 8) (wrap (+ (reg 8) (sign-extend pcoffset11 11))))))
+
+;; LD
+(with-spec ((dr 3 9) (pcoffset9 9 0)) #b0010111000000000
+  (setf (reg dr) (mem (wrap (+ (reg 8) (sign-extend pcoffset9 9))))))
+
+;; LDI R7, 1
+;; #b1010 1110 0000 00010001
+(with-spec ((dr 3 9) (pcoffset9 9 0)) #xae01
+  (setf (reg dr) (mem (mem (+ (sign-extend pcoffset9 9) (reg 8))))))
+
+;; LDR
+(with-spec ((dr 3 9) (baser 3 6) (offset6 6 0)) #b0110111111000001
+  (setf (reg dr) (mem (wrap (+ (reg baser) (sign-extend offset6 6))))))
+
+;; LEA
+(with-spec ((dr 3 9) (pcoffset9 9 0)) #b1110111000000001
+  (setf (reg dr) (wrap (+ (reg 8) (sign-extend pcoffset9 9)))))
+
+;; NOT
+(with-spec ((dr 3 9) (sr 3 6)) #b1001111111111111
+  (setf (reg dr) (logxor #xFFFF (reg sr))))
+
+;; RET
+(with-spec nil #b1100000111000000
+  (setf (reg 8) (reg 7)))
+
+;; RTI (no implementation)
+
+;; ST
+(with-spec ((sr 3 9) (pcoffset9 9 0)) #b0011111000000001
+  (setf (mem (wrap (+ (reg 8) (sign-extend pcoffset9 9)))) (reg sr)))
+
+;; STI
+(with-spec ((sr 3 9) (pcoffset9 9 0)) #b1011111000000001
+  (setf (mem (mem (wrap (+ (reg 8) (sign-extend pcoffset9 9))))) (reg sr)))
+
+;; STR
+(with-spec ((sr 3 9) (baser 3 6) (offset6 6 0)) #b011111111100001
+  (setf (mem (wrap (+ (reg baser) (sign-extend offset6 6)))) (reg sr)))
+
+;; TRAP
+(with-spec ((trapvect8 8 0)) #b1111000000000000)
