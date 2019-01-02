@@ -69,7 +69,8 @@
 (defun (setf reg) (u16 idx)
   "Write to registers with SETF form and update the conditional register"
   (prog1 (setf (aref *registers* idx) u16)
-    (update-conditional-register u16)))
+    (when (< idx 8)
+      (update-conditional-register u16))))
 
 (defmacro with-spec (spec instr &body body)
   "Bind specification to instruction"
