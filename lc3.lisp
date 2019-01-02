@@ -58,10 +58,9 @@
   "Get block of memory at the address"
   (aref *memory* addr))
 
-;; (defun (setf mem) (u16 addr)
-;;   "Set the block of memory "
-;;   (prog1 (setf (aref *memory* addr) u16)
-;;     (update-conditional-register u16)))
+(defun (setf mem) (u16 addr)
+  "Set the block of memory "
+  (setf (aref *memory* addr) u16))
 
 (defun reg (idx)
   "Get the register at the index"
