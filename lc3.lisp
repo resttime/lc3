@@ -17,7 +17,7 @@
     (jsr (mode 1 11) (pcoffset11 11 0) (baser 3 6))
     (and (dr 3 9) (sr1 3 6) (mode 1 5) (sr2 3 0) (imm5 5 0))
     (ldr (dr 3 9) (baser 3 6) (offset6 6 0))
-    (str (sr 3 9) (offset6 6 0))
+    (str (sr 3 9) (baser 3 6) (offset6 6 0))
     (rti)
     (not (dr 3 9) (sr 3 6))
     (ldi (dr 3 9) (pcoffset9 9 0))
