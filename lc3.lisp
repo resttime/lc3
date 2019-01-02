@@ -41,9 +41,7 @@
 
 (defun s16->u16 (int)
   "Convert integer to a uint16"
-  (if (> int 0)
-      (wrap int)
-      (1+ (logxor #xFFFF (- int)))))
+  (ldb (byte 16 0) int))
 
 (defun sign-extend (uint bits)
   "Sign extend to 16 bits"
