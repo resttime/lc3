@@ -5,6 +5,13 @@
    R9 is the conditional")
 (defparameter *flags* '(1 0 -1)
   "Sign of u16 written to the conditional register")
+(defparameter *traps* '((getc #x20)
+                        (out #x21)
+                        (puts #x22)
+                        (in #x23)
+                        (putsp #x24)
+                        (halt #x25))
+  "The traps that get used")
 (defparameter *operations* '(br add ld st jsr and ldr str
                              rti not ldi sti jmp res lea trap
                              ret)
